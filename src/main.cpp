@@ -1,14 +1,39 @@
+#include <tclap/CmdLine.h>
 #include <iostream>
 
 #include "white_balancer.hpp"
 
 int main(int argc, char** argv) {
   std::string camera_device;
+  std::string calib_image;
+
+  try {
+    TCLAP::CmdLine cmd("White balancer for live video stream", ' ', "1.0.0");
+    TCLAP::ValueArg<std::string> dev_arg("d", "device",
+                                         "Path to camera device or video file",
+                                         false, "", "string");
+    TCLAP::ValueArg<std::string> img_arg(
+        "i", "image", "Input image for calibrating white balance gains", false,
+        "", "string");
+    cmd.add(dev_arg);
+    cmd.add(img_arg);
+
+    // Parse the argv array.
+    cmd.parse(argc, argv);
+
+    // Get the value parsed by each arg.
+    camera_device = dev_arg.getValue();
+    calib_image = img_arg.getValue();
+  } catch (TCLAP::ArgException& e)  // Catch any exceptions
+  {
+    std::cerr << "Error: " << e.error() << " for arg " << e.argId()
+              << std::endl;
+  }
 
   // Open camera device
   cv::VideoCapture cap;
   if (camera_device.empty()) {
-    camera_device = "0";
+    camera_device = "/dev/video0";
     cap.open(0);
   } else {
     cap.open(camera_device);
@@ -42,10 +67,20 @@ int main(int argc, char** argv) {
   cv::namedWindow("Original", CV_WINDOW_NORMAL);
   cv::namedWindow("Result", CV_WINDOW_NORMAL);
 #endif
-  std::cout << "Press any key to exit" << std::endl;
+  std::cout << "\033[1;33mPress c to calibrate gains." << std::endl;
+  std::cout << "Press q to exit.\033[0m" << std::endl;
 
   params gains({1.0, 1.0, 1.0});
   // Calibrate gains if given calib image.
+  if (!calib_image.empty()) {
+    cv::Mat img;
+    img = cv::imread(calib_image);
+    if (!img.empty())
+      gains = calibrate_white_balance(img);
+    else
+      std::cerr << "Fail to open calibrating image \"" << calib_image << "\""
+                << std::endl;
+  }
 
   // Feed captured frames into the processor
   while (cv::getWindowProperty("Original", 0) >= 0) {
@@ -58,8 +93,8 @@ int main(int argc, char** argv) {
       cv::imshow("Original", frame);
 
       // Process frame
-      // TODO: Complete a white balancer function, and use it to get better images.
-      // Show your result here.
+      // TODO: Complete a white balancer function, and use it to get better
+      // images. Show your result here.
       cv::Mat processed = apply_white_balance(frame, gains);
       cv::imshow("Result", processed);
     } else {
@@ -69,8 +104,8 @@ int main(int argc, char** argv) {
     // Wait for key event to keep fps
     auto key = (char)cv::waitKey(30);
     if (key == 'c') {
-        calibrate_white_balance(frame);
-    } else if (key >= 0) {
+      gains = calibrate_white_balance(frame);
+    } else if (key == 'q') {
       break;
     }
   }

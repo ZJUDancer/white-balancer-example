@@ -2,7 +2,7 @@
 #include <opencv2/opencv.hpp>
 
 struct params {
-    double r, g, b;
+  double r, g, b;
 };
 
 /**
@@ -22,5 +22,4 @@ params calibrate_white_balance(const cv::Mat& input_image);
  *
  * \return The corrected image.
  */
-cv::Mat apply_white_balance(const cv::Mat& input_image,
-                            const params gains);
+cv::Mat apply_white_balance(const cv::Mat& input_image, const params gains);
